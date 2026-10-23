@@ -47,7 +47,7 @@ public class SeedDataTests
     {
         Assert.All(GameSeeder.Games, seed =>
         {
-            var request = new CreateGameRequest(seed.Title, seed.Platform.ToString(), seed.Status.ToString());
+            var request = new GameRequest(seed.Title, seed.Platform.ToString(), seed.Status.ToString());
             Assert.True(GameValidator.TryValidate(request, out var valid, out var errors), string.Join("; ", errors.SelectMany(e => e.Value)));
             Assert.Equal(seed.Title, valid.Title);
 
