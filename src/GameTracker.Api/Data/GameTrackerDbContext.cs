@@ -29,6 +29,10 @@ public class GameTrackerDbContext(DbContextOptions<GameTrackerDbContext> options
 
             game.Property(g => g.Platform).HasConversion<string>();
             game.Property(g => g.Status).HasConversion<string>();
+
+            // The index inherits the Title column's NOCASE collation, so it is case-insensitive.
+            // It is the source of truth for uniqueness; the API's own check only gives a friendlier 409 first.
+            game.HasIndex(g => new { g.Title, g.Platform }).IsUnique();
         });
     }
 }

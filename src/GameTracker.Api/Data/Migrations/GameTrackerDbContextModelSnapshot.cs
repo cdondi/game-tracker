@@ -48,6 +48,9 @@ namespace GameTracker.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Title", "Platform")
+                        .IsUnique();
+
                     b.ToTable("Games");
                 });
 #pragma warning restore 612, 618

@@ -1,6 +1,7 @@
 using GameTracker.Api.Data;
 using GameTracker.Api.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameTracker.Api.Games;
@@ -34,11 +35,16 @@ public static class GamesEndpoints
         return TypedResults.Ok(games.Select(GameResponse.From).ToList());
     }
 
-    private static async Task<Results<Created<GameResponse>, ValidationProblem>> CreateGame(GameRequest request, GameTrackerDbContext db)
+    private static async Task<Results<Created<GameResponse>, ValidationProblem, ProblemHttpResult>> CreateGame(GameRequest request, GameTrackerDbContext db)
     {
         if (!GameValidator.TryValidate(request, out var valid, out var errors))
         {
             return TypedResults.ValidationProblem(errors);
+        }
+
+        if (await IsDuplicateAsync(db, valid, exceptId: null))
+        {
+            return DuplicateProblem(valid);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -52,16 +58,20 @@ public static class GamesEndpoints
         };
 
         db.Games.Add(game);
-        await db.SaveChangesAsync();
+        if (!await TrySaveUniqueAsync(db))
+        {
+            return DuplicateProblem(valid);
+        }
 
         return TypedResults.Created($"/games/{game.Id}", GameResponse.From(game));
     }
 
     /// <summary>
     /// Replaces every client-editable field. Rating is not accepted yet (Story 7), so an update clears it.
-    /// An unknown id is a 404; PUT never creates a game.
+    /// An unknown id is a 404; PUT never creates a game. Keeping the game's own title and platform
+    /// (even with different casing) is not a duplicate.
     /// </summary>
-    private static async Task<Results<Ok<GameResponse>, ValidationProblem, NotFound>> UpdateGame(int id, GameRequest request, GameTrackerDbContext db)
+    private static async Task<Results<Ok<GameResponse>, ValidationProblem, NotFound, ProblemHttpResult>> UpdateGame(int id, GameRequest request, GameTrackerDbContext db)
     {
         if (!GameValidator.TryValidate(request, out var valid, out var errors))
         {
@@ -74,13 +84,21 @@ public static class GamesEndpoints
             return TypedResults.NotFound();
         }
 
+        if (await IsDuplicateAsync(db, valid, exceptId: id))
+        {
+            return DuplicateProblem(valid);
+        }
+
         game.Title = valid.Title;
         game.Platform = valid.Platform;
         game.Status = valid.Status;
         game.Rating = null;
         game.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await db.SaveChangesAsync();
+        if (!await TrySaveUniqueAsync(db))
+        {
+            return DuplicateProblem(valid);
+        }
 
         return TypedResults.Ok(GameResponse.From(game));
     }
@@ -91,4 +109,37 @@ public static class GamesEndpoints
 
         return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
     }
+
+    /// <summary>
+    /// The friendly pre-check. The title comparison runs in SQL, where the NOCASE collation ignores case;
+    /// the validator has already trimmed the title.
+    /// </summary>
+    private static Task<bool> IsDuplicateAsync(GameTrackerDbContext db, ValidatedGame valid, int? exceptId) =>
+        db.Games.AnyAsync(g => g.Title == valid.Title && g.Platform == valid.Platform && g.Id != exceptId);
+
+    /// <summary>
+    /// Saves, returning false if the unique index on (Title, Platform) rejects the change. This catches
+    /// a duplicate that slips past <see cref="IsDuplicateAsync"/>, such as a concurrent request.
+    /// </summary>
+    private static async Task<bool> TrySaveUniqueAsync(GameTrackerDbContext db)
+    {
+        try
+        {
+            await db.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: SqliteUniqueConstraintError })
+        {
+            return false;
+        }
+    }
+
+    /// <summary>SQLITE_CONSTRAINT_UNIQUE.</summary>
+    private const int SqliteUniqueConstraintError = 2067;
+
+    private static ProblemHttpResult DuplicateProblem(ValidatedGame valid) =>
+        TypedResults.Problem(
+            title: "Duplicate game",
+            detail: $"A game titled '{valid.Title}' on {valid.Platform} already exists.",
+            statusCode: StatusCodes.Status409Conflict);
 }
