@@ -12,7 +12,7 @@ namespace GameTracker.Tests;
 /// <summary>
 /// Hosts the API against an in-memory SQLite database. The connection stays open
 /// for the factory's lifetime, because an in-memory database disappears when its
-/// last connection closes.
+/// last connection closes. API key auth is off, so these tests cover the v1 no-auth behavior.
 /// </summary>
 public class GameTrackerApiFactory : WebApplicationFactory<Program>
 {
@@ -25,6 +25,7 @@ public class GameTrackerApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
+        builder.UseSetting("Auth:Enabled", "false");
         builder.ConfigureTestServices(services =>
         {
             // EF Core 9 registers both of these for AddDbContext; remove both so the

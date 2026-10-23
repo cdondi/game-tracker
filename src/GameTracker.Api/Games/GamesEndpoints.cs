@@ -10,7 +10,7 @@ public static class GamesEndpoints
 {
     public static IEndpointRouteBuilder MapGamesEndpoints(this IEndpointRouteBuilder routes)
     {
-        var games = routes.MapGroup("/games").WithTags("Games");
+        var games = routes.MapGroup("/games").WithTags("Games").RequireAuthorization();
 
         games.MapGet("/", ListGames);
         games.MapGet("/{id:int}", GetGame);
