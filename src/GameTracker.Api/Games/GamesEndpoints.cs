@@ -13,6 +13,7 @@ public static class GamesEndpoints
         var games = routes.MapGroup("/games").WithTags("Games");
 
         games.MapGet("/", ListGames);
+        games.MapGet("/{id:int}", GetGame);
         games.MapPost("/", CreateGame);
         games.MapPut("/{id:int}", UpdateGame);
         games.MapDelete("/{id:int}", DeleteGame);
@@ -52,6 +53,13 @@ public static class GamesEndpoints
             .ToListAsync();
 
         return TypedResults.Ok(games.Select(GameResponse.From).ToList());
+    }
+
+    private static async Task<Results<Ok<GameResponse>, NotFound>> GetGame(int id, GameTrackerDbContext db)
+    {
+        var game = await db.Games.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id);
+
+        return game is null ? TypedResults.NotFound() : TypedResults.Ok(GameResponse.From(game));
     }
 
     private static async Task<Results<Created<GameResponse>, ValidationProblem, ProblemHttpResult>> CreateGame(GameRequest request, GameTrackerDbContext db)

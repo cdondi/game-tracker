@@ -20,7 +20,6 @@ public class DeleteGameTests(GameTrackerApiFactory factory) : IClassFixture<Game
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(await response.Content.ReadAsByteArrayAsync());
 
-        // Checked against the database rather than GET /games/{id}, which is Story 2.
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GameTrackerDbContext>();
         Assert.Null(await db.Games.FindAsync(id));
