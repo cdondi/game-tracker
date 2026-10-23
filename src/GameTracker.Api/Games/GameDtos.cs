@@ -3,10 +3,10 @@ using GameTracker.Api.Models;
 namespace GameTracker.Api.Games;
 
 /// <summary>
-/// Enum fields are strings so the API can report unknown values per field, with the valid options.
+/// The body for POST and PUT. Enum fields are strings so the API can report unknown values per field, with the valid options.
 /// Server-owned fields (id, createdAt, updatedAt) are deliberately absent, so client values are ignored.
 /// </summary>
-public record CreateGameRequest(string? Title, string? Platform, string? Status);
+public record GameRequest(string? Title, string? Platform, string? Status);
 
 public record GameResponse(
     int Id,

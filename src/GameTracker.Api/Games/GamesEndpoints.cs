@@ -13,6 +13,7 @@ public static class GamesEndpoints
 
         games.MapGet("/", ListGames);
         games.MapPost("/", CreateGame);
+        games.MapPut("/{id:int}", UpdateGame);
         games.MapDelete("/{id:int}", DeleteGame);
 
         return routes;
@@ -33,7 +34,7 @@ public static class GamesEndpoints
         return TypedResults.Ok(games.Select(GameResponse.From).ToList());
     }
 
-    private static async Task<Results<Created<GameResponse>, ValidationProblem>> CreateGame(CreateGameRequest request, GameTrackerDbContext db)
+    private static async Task<Results<Created<GameResponse>, ValidationProblem>> CreateGame(GameRequest request, GameTrackerDbContext db)
     {
         if (!GameValidator.TryValidate(request, out var valid, out var errors))
         {
@@ -54,6 +55,34 @@ public static class GamesEndpoints
         await db.SaveChangesAsync();
 
         return TypedResults.Created($"/games/{game.Id}", GameResponse.From(game));
+    }
+
+    /// <summary>
+    /// Replaces every client-editable field. Rating is not accepted yet (Story 7), so an update clears it.
+    /// An unknown id is a 404; PUT never creates a game.
+    /// </summary>
+    private static async Task<Results<Ok<GameResponse>, ValidationProblem, NotFound>> UpdateGame(int id, GameRequest request, GameTrackerDbContext db)
+    {
+        if (!GameValidator.TryValidate(request, out var valid, out var errors))
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        var game = await db.Games.FindAsync(id);
+        if (game is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        game.Title = valid.Title;
+        game.Platform = valid.Platform;
+        game.Status = valid.Status;
+        game.Rating = null;
+        game.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        return TypedResults.Ok(GameResponse.From(game));
     }
 
     private static async Task<Results<NoContent, NotFound>> DeleteGame(int id, GameTrackerDbContext db)
