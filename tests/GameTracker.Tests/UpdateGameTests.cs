@@ -213,8 +213,8 @@ public class UpdateGameTests(GameTrackerApiFactory factory) : IClassFixture<Game
     }
 
     /// <summary>
-    /// Inserts a game directly with old timestamps (and optionally a rating, which the API
-    /// does not accept until Story 7), so tests can tell whether a PUT changed them.
+    /// Inserts a game directly with old timestamps (and optionally a rating), so tests can tell
+    /// whether a PUT changed them.
     /// </summary>
     private async Task<int> InsertGameAsync(GameStatus status = GameStatus.Backlog, decimal? rating = null)
     {
