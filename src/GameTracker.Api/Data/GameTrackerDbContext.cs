@@ -7,6 +7,17 @@ public class GameTrackerDbContext(DbContextOptions<GameTrackerDbContext> options
 {
     public DbSet<Game> Games => Set<Game>();
 
+    /// <summary>
+    /// Seeding is registered here rather than in Program.cs so that every configuration of the
+    /// context, including the in-memory one the tests use, seeds the same way.
+    /// </summary>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder
+            .UseSeeding(GameSeeder.Seed)
+            .UseAsyncSeeding(GameSeeder.SeedAsync);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Game>(game =>
