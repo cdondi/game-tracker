@@ -36,6 +36,14 @@ public static class GameValidator
     }
 
     /// <summary>
+    /// Parses an optional filter value. A null value means "no filter" and is valid;
+    /// any other value must name an enum member.
+    /// </summary>
+    public static TEnum? ParseFilter<TEnum>(string? value, string field, Dictionary<string, string[]> errors)
+        where TEnum : struct, Enum
+        => value is null ? null : ParseEnum<TEnum>(value, field, errors);
+
+    /// <summary>
     /// Matches an enum by name, ignoring case. Unlike <see cref="Enum.TryParse{TEnum}(string?, bool, out TEnum)"/>,
     /// numeric strings such as "1" are rejected.
     /// </summary>

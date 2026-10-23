@@ -20,13 +20,32 @@ public static class GamesEndpoints
     }
 
     /// <summary>
-    /// Returns every game as a bare array, sorted by title ignoring case. The ordering runs in SQL,
-    /// where the Title column's NOCASE collation provides the case-insensitive comparison.
+    /// Returns games as a bare array, sorted by title ignoring case, optionally filtered by status and/or
+    /// platform (combined with AND). Filter values ignore case; an unknown value is a 400, not an empty list.
+    /// The ordering runs in SQL, where the Title column's NOCASE collation provides the case-insensitive comparison.
     /// </summary>
-    private static async Task<Ok<List<GameResponse>>> ListGames(GameTrackerDbContext db)
+    private static async Task<Results<Ok<List<GameResponse>>, ValidationProblem>> ListGames(
+        GameTrackerDbContext db, string? status = null, string? platform = null)
     {
-        var games = await db.Games
-            .AsNoTracking()
+        var errors = new Dictionary<string, string[]>();
+        var statusFilter = GameValidator.ParseFilter<GameStatus>(status, "status", errors);
+        var platformFilter = GameValidator.ParseFilter<Platform>(platform, "platform", errors);
+        if (errors.Count > 0)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        var query = db.Games.AsNoTracking();
+        if (statusFilter is { } s)
+        {
+            query = query.Where(g => g.Status == s);
+        }
+        if (platformFilter is { } p)
+        {
+            query = query.Where(g => g.Platform == p);
+        }
+
+        var games = await query
             .OrderBy(g => g.Title)
             .ThenBy(g => g.Id)
             .ToListAsync();
