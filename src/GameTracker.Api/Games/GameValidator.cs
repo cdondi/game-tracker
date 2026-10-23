@@ -12,7 +12,7 @@ public static class GameValidator
     /// Validates a request. On failure, <paramref name="errors"/> holds messages keyed by JSON field name.
     /// </summary>
     public static bool TryValidate(
-        CreateGameRequest request,
+        GameRequest request,
         [NotNullWhen(true)] out ValidatedGame? game,
         out Dictionary<string, string[]> errors)
     {
