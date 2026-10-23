@@ -4,7 +4,7 @@ using GameTracker.Api.Models;
 namespace GameTracker.Api.Games;
 
 /// <summary>A request whose fields have passed validation and been normalized.</summary>
-public record ValidatedGame(string Title, Platform Platform, GameStatus Status);
+public record ValidatedGame(string Title, Platform Platform, GameStatus Status, decimal? Rating);
 
 public static class GameValidator
 {
@@ -31,7 +31,19 @@ public static class GameValidator
         var platform = ParseEnum<Platform>(request.Platform, "platform", errors);
         var status = ParseEnum<GameStatus>(request.Status, "status", errors);
 
-        game = errors.Count == 0 ? new ValidatedGame(title, platform!.Value, status!.Value) : null;
+        if (request.Rating is { } rating)
+        {
+            if (rating < Game.MinRating || rating > Game.MaxRating || rating * 2 % 1 != 0)
+            {
+                errors["rating"] = [$"Rating must be between {Game.MinRating:0.0} and {Game.MaxRating:0.0} in steps of 0.5."];
+            }
+            else if (status == GameStatus.Backlog)
+            {
+                errors["rating"] = ["A Backlog game can't have a rating. Set rating to null, or use status Playing or Completed."];
+            }
+        }
+
+        game = errors.Count == 0 ? new ValidatedGame(title, platform!.Value, status!.Value, request.Rating) : null;
         return game is not null;
     }
 

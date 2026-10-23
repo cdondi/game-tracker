@@ -72,6 +72,7 @@ public static class GamesEndpoints
             Title = valid.Title,
             Platform = valid.Platform,
             Status = valid.Status,
+            Rating = valid.Rating,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -86,8 +87,9 @@ public static class GamesEndpoints
     }
 
     /// <summary>
-    /// Replaces every client-editable field. Rating is not accepted yet (Story 7), so an update clears it.
-    /// An unknown id is a 404; PUT never creates a game. Keeping the game's own title and platform
+    /// Replaces every client-editable field, so an omitted rating becomes null. The exception is moving a
+    /// rated game to Backlog: the body must say "rating": null explicitly, so a rating is never cleared by
+    /// accident. An unknown id is a 404; PUT never creates a game. Keeping the game's own title and platform
     /// (even with different casing) is not a duplicate.
     /// </summary>
     private static async Task<Results<Ok<GameResponse>, ValidationProblem, NotFound, ProblemHttpResult>> UpdateGame(int id, GameRequest request, GameTrackerDbContext db)
@@ -103,6 +105,14 @@ public static class GamesEndpoints
             return TypedResults.NotFound();
         }
 
+        if (game.Rating is not null && valid.Status == GameStatus.Backlog && !request.RatingProvided)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["rating"] = ["This game is rated. To move it to Backlog, set rating to null in the same request."],
+            });
+        }
+
         if (await IsDuplicateAsync(db, valid, exceptId: id))
         {
             return DuplicateProblem(valid);
@@ -111,7 +121,7 @@ public static class GamesEndpoints
         game.Title = valid.Title;
         game.Platform = valid.Platform;
         game.Status = valid.Status;
-        game.Rating = null;
+        game.Rating = valid.Rating;
         game.UpdatedAt = DateTimeOffset.UtcNow;
 
         if (!await TrySaveUniqueAsync(db))

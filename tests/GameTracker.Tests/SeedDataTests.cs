@@ -12,8 +12,6 @@ namespace GameTracker.Tests;
 /// </summary>
 public class SeedDataTests
 {
-    private static readonly decimal[] ValidRatings = [1.0m, 1.5m, 2.0m, 2.5m, 3.0m, 3.5m, 4.0m, 4.5m, 5.0m];
-
     [Fact]
     public async Task Startup_seeds_exactly_the_sample_games_into_an_empty_table()
     {
@@ -47,15 +45,10 @@ public class SeedDataTests
     {
         Assert.All(GameSeeder.Games, seed =>
         {
-            var request = new GameRequest(seed.Title, seed.Platform.ToString(), seed.Status.ToString());
+            var request = new GameRequest(seed.Title, seed.Platform.ToString(), seed.Status.ToString()) { Rating = seed.Rating };
             Assert.True(GameValidator.TryValidate(request, out var valid, out var errors), string.Join("; ", errors.SelectMany(e => e.Value)));
             Assert.Equal(seed.Title, valid.Title);
-
-            if (seed.Rating is { } rating)
-            {
-                Assert.Contains(rating, ValidRatings);
-                Assert.NotEqual(GameStatus.Backlog, seed.Status);
-            }
+            Assert.Equal(seed.Rating, valid.Rating);
         });
 
         var keys = GameSeeder.Games.Select(g => (g.Title.Trim().ToUpperInvariant(), g.Platform)).ToList();
