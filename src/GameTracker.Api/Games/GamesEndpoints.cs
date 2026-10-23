@@ -1,6 +1,7 @@
 using GameTracker.Api.Data;
 using GameTracker.Api.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 
 namespace GameTracker.Api.Games;
 
@@ -11,6 +12,7 @@ public static class GamesEndpoints
         var games = routes.MapGroup("/games").WithTags("Games");
 
         games.MapPost("/", CreateGame);
+        games.MapDelete("/{id:int}", DeleteGame);
 
         return routes;
     }
@@ -36,5 +38,12 @@ public static class GamesEndpoints
         await db.SaveChangesAsync();
 
         return TypedResults.Created($"/games/{game.Id}", GameResponse.From(game));
+    }
+
+    private static async Task<Results<NoContent, NotFound>> DeleteGame(int id, GameTrackerDbContext db)
+    {
+        var deleted = await db.Games.Where(g => g.Id == id).ExecuteDeleteAsync();
+
+        return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
     }
 }
